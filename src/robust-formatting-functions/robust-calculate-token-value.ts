@@ -22,10 +22,23 @@ export interface RobustCalculatedTokenValue {
   tokenValueDecimals: number
 }
 
+/**
+ * Runtime-safe wrapper options for {@link robustCalculateTokenValue}.
+ *
+ * All `input` fields are required for successful calculation:
+ * `tokenAmount`, `tokenPrice`, `tokenDecimals`, `tokenPriceDecimals`.
+ */
 export interface RobustCalculateTokenValueOptions
   extends RobustFormattingBaseOptions {
   input?: RobustCalculateTokenValueInput
 }
+
+const REQUIRED_CALCULATE_TOKEN_VALUE_FIELDS = [
+  "tokenAmount",
+  "tokenPrice",
+  "tokenDecimals",
+  "tokenPriceDecimals",
+] as const
 
 function normalizeTokenPriceToScaledBigInt(
   tokenPrice: unknown,
@@ -97,39 +110,32 @@ function normalizeTokenPriceToScaledBigInt(
   return undefined
 }
 
+/**
+ * Robustly computes token value from amount/price/decimals.
+ *
+ * Formula:
+ * `tokenValueRaw = (tokenAmount * tokenPriceScaled) / 10^tokenDecimals`
+ *
+ * Output decimals are always `tokenPriceDecimals`.
+ * This wrapper never throws and returns diagnostics in `warnings` / `errors`.
+ */
 export function robustCalculateTokenValue({
   input,
   context = "robustCalculateTokenValue",
-  requiredFields,
   missingRequiredFieldSeverity = "warning",
 }: RobustCalculateTokenValueOptions = {}): RobustFormattingResult<RobustCalculatedTokenValue> {
   const warnings: string[] = []
   const errors: string[] = []
 
   const hasMissingRequiredField = reportMissingRequiredFields(
-    input as Record<string, unknown> | undefined,
-    requiredFields,
+    input,
+    REQUIRED_CALCULATE_TOKEN_VALUE_FIELDS,
     warnings,
     errors,
     missingRequiredFieldSeverity,
   )
 
   if (hasMissingRequiredField) {
-    return finalizeRobustFormattingResult<RobustCalculatedTokenValue>(
-      context,
-      undefined,
-      warnings,
-      errors,
-    )
-  }
-
-  const hasAllRequiredInputs =
-    input?.tokenAmount != null &&
-    input?.tokenPrice != null &&
-    input?.tokenDecimals != null &&
-    input?.tokenPriceDecimals != null
-
-  if (!hasAllRequiredInputs) {
     return finalizeRobustFormattingResult<RobustCalculatedTokenValue>(
       context,
       undefined,

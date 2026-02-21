@@ -3,6 +3,7 @@ import {
   type RobustFormattingBaseOptions,
   type RobustFormattingResult,
   type RobustNumberFormattingInput,
+  type RequiredFieldNames,
   finalizeRobustFormattingResult,
   normalizeNumberValue,
   normalizeSymbol,
@@ -13,12 +14,24 @@ import {
 type FormatNumberToViewNumberOptions = Parameters<typeof formatNumberToViewNumber>[2]
 type FormatNumberToViewNumberValue = ReturnType<typeof formatNumberToViewNumber>
 
+/**
+ * Runtime-safe wrapper options for {@link robustFormatNumberToViewNumber}.
+ *
+ * `requiredFields` is key-typed against `input`.
+ */
 export interface RobustFormatNumberToViewNumberOptions
   extends RobustFormattingBaseOptions {
   input?: RobustNumberFormattingInput
   options?: FormatNumberToViewNumberOptions
+  requiredFields?: RequiredFieldNames<RobustNumberFormattingInput>
 }
 
+/**
+ * Robustly normalizes number-like input and formats it via
+ * {@link formatNumberToViewNumber}.
+ *
+ * This wrapper never throws and returns diagnostics in `warnings` / `errors`.
+ */
 export function robustFormatNumberToViewNumber({
   input,
   options,
@@ -30,7 +43,7 @@ export function robustFormatNumberToViewNumber({
   const errors: string[] = []
 
   const hasMissingRequiredField = reportMissingRequiredFields(
-    input as Record<string, unknown> | undefined,
+    input,
     requiredFields,
     warnings,
     errors,

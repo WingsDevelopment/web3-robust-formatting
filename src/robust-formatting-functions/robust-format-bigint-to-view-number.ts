@@ -3,6 +3,7 @@ import {
   type RobustBigIntFormattingInput,
   type RobustFormattingBaseOptions,
   type RobustFormattingResult,
+  type RequiredFieldNames,
   finalizeRobustFormattingResult,
   normalizeBigIntValue,
   normalizeDecimals,
@@ -11,29 +12,51 @@ import {
   toErrorMessage,
 } from "./robust-formatting.js"
 
-type FormatBigIntToViewNumberOptions =
-  Parameters<typeof formatBigIntToViewNumber>[3]
+type FormatBigIntToViewNumberOptions = Parameters<typeof formatBigIntToViewNumber>[3]
 type FormatBigIntToViewNumberValue = ReturnType<typeof formatBigIntToViewNumber>
+const DEFAULT_REQUIRED_BIGINT_FIELDS = ["decimals"] as const
 
-export interface RobustFormatBigIntToViewNumberOptions
-  extends RobustFormattingBaseOptions {
+/**
+ * Runtime-safe wrapper options for {@link robustFormatBigIntToViewNumber}.
+ *
+ * `requiredFields` is key-typed against `input`.
+ * Default behavior requires `decimals` when `bigIntValue` is present.
+ */
+export interface RobustFormatBigIntToViewNumberOptions extends RobustFormattingBaseOptions {
   input?: RobustBigIntFormattingInput
   options?: FormatBigIntToViewNumberOptions
+  requiredFields?: RequiredFieldNames<RobustBigIntFormattingInput>
 }
 
-export function robustFormatBigIntToViewNumber({
-  input,
-  options,
-  context = "robustFormatBigIntToViewNumber",
-  requiredFields,
-  missingRequiredFieldSeverity = "warning",
-}: RobustFormatBigIntToViewNumberOptions = {}): RobustFormattingResult<FormatBigIntToViewNumberValue> {
+/**
+ * Robustly normalizes bigint-like input and formats it via {@link formatBigIntToViewNumber}.
+ *
+ * Behavior:
+ * - `requiredFields` defaults to `["decimals"]`
+ * - if `input.bigIntValue == null`, the default requirement is removed
+ * - caller can override with explicit `requiredFields`
+ */
+export function robustFormatBigIntToViewNumber(
+  params: RobustFormatBigIntToViewNumberOptions = {},
+): RobustFormattingResult<FormatBigIntToViewNumberValue> {
+  const {
+    input,
+    options,
+    context = "robustFormatBigIntToViewNumber",
+    requiredFields = DEFAULT_REQUIRED_BIGINT_FIELDS,
+    missingRequiredFieldSeverity = "warning",
+  } = params
+
   const warnings: string[] = []
   const errors: string[] = []
+  const effectiveRequiredFields: RequiredFieldNames<RobustBigIntFormattingInput> =
+    params.requiredFields == null && input?.bigIntValue == null
+      ? []
+      : requiredFields
 
   const hasMissingRequiredField = reportMissingRequiredFields(
-    input as Record<string, unknown> | undefined,
-    requiredFields,
+    input,
+    effectiveRequiredFields,
     warnings,
     errors,
     missingRequiredFieldSeverity,
@@ -48,11 +71,7 @@ export function robustFormatBigIntToViewNumber({
     )
   }
 
-  const normalizedBigIntValue = normalizeBigIntValue(
-    input?.bigIntValue,
-    warnings,
-    errors,
-  )
+  const normalizedBigIntValue = normalizeBigIntValue(input?.bigIntValue, warnings, errors)
   const normalizedSymbol = normalizeSymbol(input?.symbol, errors)
   const normalizedDecimals = normalizeDecimals(input?.decimals, warnings, errors)
 

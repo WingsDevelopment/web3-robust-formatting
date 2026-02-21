@@ -40,6 +40,19 @@ test("robustFormatBigIntToViewTokenAmount handles valid and coerced inputs", () 
   assert.equal(validRun.calls.length, 0)
   assert.equal(validRun.result.value?.viewValue, "1.234567")
 
+  const validRun2 = runWithSilencedConsoleError(() =>
+    robustFormatBigIntToViewTokenAmount({
+      context: "tests.robust.tokenAmount.valid",
+      input: { bigIntValue: 11234567n, decimals: 6, symbol: "USDC" },
+      requiredFields: ["bigIntValue", "decimals"],
+    }),
+  )
+
+  assert.equal(validRun2.result.errors.length, 0)
+  assert.equal(validRun2.result.warnings.length, 0)
+  assert.equal(validRun2.calls.length, 0)
+  assert.equal(validRun2.result.value?.viewValue, "11.23")
+
   const coercedRun = runWithSilencedConsoleError(() =>
     robustFormatBigIntToViewTokenAmount({
       context: "tests.robust.tokenAmount.coerced",
@@ -76,9 +89,7 @@ test("robustFormatBigIntToViewTokenAmount reports required-field and type errors
   assert.equal(missingRequiredRun.result.value, undefined)
   assert.equal(missingRequiredRun.result.errors.length, 0)
   assert.ok(
-    missingRequiredRun.result.warnings.includes(
-      "bigIntValue is required but received undefined.",
-    ),
+    missingRequiredRun.result.warnings.includes("bigIntValue is required but received undefined."),
   )
 
   const invalidTypeRun = runWithSilencedConsoleError(() =>
@@ -91,9 +102,7 @@ test("robustFormatBigIntToViewTokenAmount reports required-field and type errors
 
   assert.equal(invalidTypeRun.result.value, undefined)
   assert.ok(
-    invalidTypeRun.result.errors.includes(
-      'bigIntValue has unsupported runtime type "object".',
-    ),
+    invalidTypeRun.result.errors.includes('bigIntValue has unsupported runtime type "object".'),
   )
 })
 
@@ -112,6 +121,48 @@ test("robustFormatBigIntToViewNumber reports invalid decimals", () => {
       'decimals string "bad" is invalid; expected non-negative integer string.',
     ),
   )
+})
+
+test("robust bigint formatters require decimals when bigint value is present", () => {
+  const asWarningRun = runWithSilencedConsoleError(() =>
+    robustFormatBigIntToViewNumber({
+      context: "tests.robust.bigIntToViewNumber.missingDecimals.warning",
+      input: { bigIntValue: "1234500", symbol: "$" },
+    }),
+  )
+
+  assert.equal(asWarningRun.result.value, undefined)
+  assert.ok(asWarningRun.result.warnings.includes("decimals is required but received undefined."))
+
+  const asErrorRun = runWithSilencedConsoleError(() =>
+    robustFormatBigIntToViewTokenAmount({
+      context: "tests.robust.bigIntToViewTokenAmount.missingDecimals.error",
+      input: { bigIntValue: "1234500", symbol: "USDC" },
+      missingRequiredFieldSeverity: "error",
+    }),
+  )
+
+  assert.equal(asErrorRun.result.value, undefined)
+  assert.ok(asErrorRun.result.errors.includes("decimals is required but received undefined."))
+})
+
+test("robust bigint formatters allow overriding default decimals requirement", () => {
+  const run = runWithSilencedConsoleError(() =>
+    robustFormatBigIntToViewNumber({
+      context: "tests.robust.bigIntToViewNumber.overrideDefaultRequiredFields",
+      input: { bigIntValue: "1234500", symbol: "$" },
+      requiredFields: [],
+    }),
+  )
+
+  assert.equal(run.result.value, undefined)
+  assert.equal(run.result.warnings.length, 1)
+  assert.ok(
+    run.result.warnings.includes(
+      "bigIntValue came as string and was automatically converted to bigint.",
+    ),
+  )
+  assert.equal(run.result.errors.length, 0)
 })
 
 test("robustFormatNumberToViewNumber handles coercion and invalid type", () => {
@@ -170,11 +221,32 @@ test("robustFormatPercentToViewPercent keeps zero valid and supports required-fi
   )
 
   assert.equal(missingAsErrorRun.result.value, undefined)
-  assert.ok(
-    missingAsErrorRun.result.errors.includes(
-      "value is required but received undefined.",
-    ),
+  assert.ok(missingAsErrorRun.result.errors.includes("value is required but received undefined."))
+})
+
+test("robustFormatPercentToViewPercent supports multiplier/divider scaling", () => {
+  const scaledRun = runWithSilencedConsoleError(() =>
+    robustFormatPercentToViewPercent({
+      context: "tests.robust.percent.scaled",
+      input: { value: 25 },
+      multiplier: 1,
+      divider: 100,
+    }),
   )
+
+  assert.equal(scaledRun.result.errors.length, 0)
+  assert.equal(scaledRun.result.value?.viewValue, "25.00")
+
+  const dividerZeroRun = runWithSilencedConsoleError(() =>
+    robustFormatPercentToViewPercent({
+      context: "tests.robust.percent.dividerZero",
+      input: { value: 25 },
+      divider: 0,
+    }),
+  )
+
+  assert.equal(dividerZeroRun.result.value, undefined)
+  assert.ok(dividerZeroRun.result.errors.includes("divider cannot be zero."))
 })
 
 test("robustCalculateTokenValue handles valid, coerced, missing, and invalid input", () => {
@@ -187,12 +259,6 @@ test("robustCalculateTokenValue handles valid, coerced, missing, and invalid inp
         tokenDecimals: 18,
         tokenPriceDecimals: 8,
       },
-      requiredFields: [
-        "tokenAmount",
-        "tokenPrice",
-        "tokenDecimals",
-        "tokenPriceDecimals",
-      ],
     }),
   )
 
@@ -210,12 +276,6 @@ test("robustCalculateTokenValue handles valid, coerced, missing, and invalid inp
         tokenDecimals: "18",
         tokenPriceDecimals: "8",
       },
-      requiredFields: [
-        "tokenAmount",
-        "tokenPrice",
-        "tokenDecimals",
-        "tokenPriceDecimals",
-      ],
     }),
   )
 
@@ -236,21 +296,13 @@ test("robustCalculateTokenValue handles valid, coerced, missing, and invalid inp
         tokenDecimals: 18,
         tokenPriceDecimals: 8,
       },
-      requiredFields: [
-        "tokenAmount",
-        "tokenPrice",
-        "tokenDecimals",
-        "tokenPriceDecimals",
-      ],
       missingRequiredFieldSeverity: "warning",
     }),
   )
 
   assert.equal(missingRequiredRun.result.value, undefined)
   assert.ok(
-    missingRequiredRun.result.warnings.includes(
-      "tokenPrice is required but received undefined.",
-    ),
+    missingRequiredRun.result.warnings.includes("tokenPrice is required but received undefined."),
   )
 
   const invalidPriceRun = runWithSilencedConsoleError(() =>
@@ -262,12 +314,6 @@ test("robustCalculateTokenValue handles valid, coerced, missing, and invalid inp
         tokenDecimals: 18,
         tokenPriceDecimals: 8,
       },
-      requiredFields: [
-        "tokenAmount",
-        "tokenPrice",
-        "tokenDecimals",
-        "tokenPriceDecimals",
-      ],
     }),
   )
 

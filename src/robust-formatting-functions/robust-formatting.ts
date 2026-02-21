@@ -12,9 +12,10 @@ export interface RobustDisplayValue<T> {
 
 export type MissingRequiredFieldSeverity = "warning" | "error"
 
+export type RequiredFieldNames<TInput> = ReadonlyArray<Extract<keyof TInput, string>>
+
 export interface RobustFormattingBaseOptions {
   context?: string
-  requiredFields?: string[]
   missingRequiredFieldSeverity?: MissingRequiredFieldSeverity
 }
 
@@ -144,9 +145,9 @@ export function mapRobustFormattingToDisplayValue<T>(
   }
 }
 
-export function reportMissingRequiredFields(
-  input: Record<string, unknown> | undefined,
-  requiredFields: string[] | undefined,
+export function reportMissingRequiredFields<TInput extends object>(
+  input: TInput | undefined,
+  requiredFields: RequiredFieldNames<TInput> | undefined,
   warnings: string[],
   errors: string[],
   severity: MissingRequiredFieldSeverity = "warning",
@@ -156,9 +157,10 @@ export function reportMissingRequiredFields(
   }
 
   let hasMissingRequiredField = false
+  const recordInput = input as Record<string, unknown> | undefined
 
   for (const fieldName of requiredFields) {
-    const value = input?.[fieldName]
+    const value = recordInput?.[fieldName]
     if (value !== undefined && value !== null) {
       continue
     }

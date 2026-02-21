@@ -7,12 +7,14 @@ Formatting helpers for **token amounts, USD values, percentages, and robust runt
 - **Consistent display semantics**: compact values, min/max sentinel flags, sign handling
 - **Web3-ready**: built on `viem` for base-unit conversions and parsing
 - **Pipeline friendly**: calculate token value safely, then format with diagnostics
+- **Strong rendering recommendation**: pair with [`web3-display-components`](https://www.npmjs.com/package/web3-display-components) for UI output
 
 ---
 
 ## Table of Contents
 
 - [Installation](#installation)
+- [Strong Rendering Recommendation](#strong-rendering-recommendation)
 - [Why This Library](#why-this-library)
 - [Quick Start](#quick-start)
 - [Examples](#examples)
@@ -49,6 +51,44 @@ Peer dependencies:
     "viem": "^2.0.0"
   }
 }
+```
+
+---
+
+## Strong Rendering Recommendation
+
+This package focuses on formatting and robust runtime diagnostics.  
+For actual UI rendering, use **[`web3-display-components`](https://www.npmjs.com/package/web3-display-components)** as the primary companion library.
+
+Why this pairing is strongly recommended:
+
+- formatter outputs from this package (`viewValue`, `symbol`, `sign`, `belowMin`, `aboveMax`) map directly to display concerns
+- keeps formatting logic and rendering logic separated cleanly
+- gives you consistent UI behavior for loading/error/sentinel display patterns
+
+Example integration pattern:
+
+```tsx
+import {
+  formatBigIntToViewTokenAmount,
+  formatPercentToViewPercent,
+} from "web3-robust-formatting"
+import {
+  DisplayTokenAmount,
+  DisplayPercentage,
+} from "web3-display-components"
+
+const amount = formatBigIntToViewTokenAmount({
+  bigIntValue: 1234567n,
+  decimals: 6,
+  symbol: "USDC",
+})
+
+const apy = formatPercentToViewPercent(0.125)
+
+// Use formatter outputs as renderer inputs
+;<DisplayTokenAmount {...amount} />
+;<DisplayPercentage {...apy} />
 ```
 
 ---
@@ -199,19 +239,34 @@ const res = robustFormatBigIntToViewTokenAmount({
 // res.errors    -> validation/runtime errors (if any)
 ```
 
-### Example 7 — Strict required fields with error severity
+### Example 7 — Strict required fields (typed keys) with error severity
 
 ```ts
 import { robustFormatNumberToViewNumber } from "web3-robust-formatting"
 
 const res = robustFormatNumberToViewNumber({
   input: { value: null, symbol: "$" },
-  requiredFields: ["value"],
+  requiredFields: ["value"] as const,
   missingRequiredFieldSeverity: "error",
 })
 
 // res.value    -> undefined
 // res.errors   -> ["value is required but received null."]
+```
+
+### Example 8 — Percent scaling with multiplier/divider
+
+```ts
+import { robustFormatPercentToViewPercent } from "web3-robust-formatting"
+
+const res = robustFormatPercentToViewPercent({
+  input: { value: 25 }, // basis points-like input
+  multiplier: 1,
+  divider: 100, // 25 / 100 => 0.25 ratio
+})
+
+// res.value?.viewValue -> "25.00"
+// res.value?.symbol    -> "%"
 ```
 
 ---
@@ -326,6 +381,10 @@ robustFormatBigIntToViewTokenAmount({
 })
 ```
 
+`requiredFields` is typed as keys of `input` (for example `("bigIntValue" | "decimals" | "symbol")[]`).
+Also: default `requiredFields` includes `["decimals"]`, but that default is skipped when `input.bigIntValue == null`.
+You can override this by passing `requiredFields` explicitly (for example `[]`).
+
 ### robustFormatBigIntToViewNumber
 
 ```ts
@@ -337,6 +396,10 @@ robustFormatBigIntToViewNumber({
   missingRequiredFieldSeverity,
 })
 ```
+
+`requiredFields` is typed as keys of `input`.
+Also: default `requiredFields` includes `["decimals"]`, but that default is skipped when `input.bigIntValue == null`.
+You can override this by passing `requiredFields` explicitly (for example `[]`).
 
 ### robustFormatNumberToViewNumber
 
@@ -350,16 +413,27 @@ robustFormatNumberToViewNumber({
 })
 ```
 
+`requiredFields` is typed as keys of `input` (for example `("value" | "symbol")[]`).
+
 ### robustFormatPercentToViewPercent
 
 ```ts
 robustFormatPercentToViewPercent({
   input,
   options,
+  multiplier,
+  divider,
   context,
   requiredFields,
   missingRequiredFieldSeverity,
 })
+```
+
+`requiredFields` is typed as keys of `input` (for example `("value")[]`).
+`multiplier` and `divider` are applied before calling `formatPercentToViewPercent`:
+
+```ts
+scaledValue = (value * multiplier) / divider
 ```
 
 ### robustCalculateTokenValue
@@ -373,10 +447,11 @@ robustCalculateTokenValue({
     tokenPriceDecimals?: unknown
   },
   context,
-  requiredFields,
   missingRequiredFieldSeverity,
 })
 ```
+
+All four input fields above are always required for calculation.
 
 On success, `value` is:
 
@@ -398,7 +473,7 @@ Exported helpers in `robust-formatting-functions`:
 - `buildRobustDiagnosticsMessage` — build multiline diagnostics text from warnings/errors
 - `mergeRobustDiagnostics` — deduplicate warnings/errors across multiple robust results
 - `mapRobustFormattingToDisplayValue` — map robust result to `{ value?, warnings?, errors? }`
-- `reportMissingRequiredFields` — runtime required-field validation for `unknown` payloads
+- `reportMissingRequiredFields` — runtime required-field validation using typed input keys
 - `normalizeBigIntValue`, `normalizeDecimals`, `normalizeNumberValue`, `normalizeSymbol`
 - `resolveRuntimeType`, `toErrorMessage`, `finalizeRobustFormattingResult`
 
