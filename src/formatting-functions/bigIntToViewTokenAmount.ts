@@ -100,7 +100,8 @@ export interface FormatConfig {
   decimals?: number
 
   /**
-   * Placeholder used when value or decimals are missing.
+   * Reserved for backward compatibility. Currently unused.
+   * Missing `bigIntValue` or `decimals` returns `undefined`.
    * @default "-"
    */
   placeholder?: string
@@ -141,16 +142,14 @@ export interface FormatConfig {
   minDisplay?: number
 
   /**
-   * Optional tiny sentinel floor:
-   * - If provided and `0 < |value| < minDisplay`, then:
-   *    - `belowMin = true`
-   *    - `viewValue` is the formatted floor value (no "<")
-   * - If **undefined** (default): `belowMin` is always `false` and no floor is applied.
-   *
-   * UI may prepend "<" when `belowMin === true`.
+   * Optional upper cap:
+   * - If provided and `|value| > maxDisplay`, then:
+   *    - `aboveMax = true`
+   *    - `viewValue` is the formatted cap value (no ">")
+   * - If **undefined** (default): `aboveMax` is always `false`.
    *
    * @default undefined
-   * @example 0.000001
+   * @example 100
    */
   maxDisplay?: number
 }
@@ -296,14 +295,14 @@ function formatViewValueByMagnitude(
  *    - `belowMin`: tiny-value flag (only true when `minDisplay` is provided)
  *
  * ### Notable behaviors
- * - If `data.bigIntValue` **or** `data.decimals` is missing → returns placeholders; `symbol/decimals` pass through.
+ * - If `data.bigIntValue` **or** `data.decimals` is missing → returns `undefined`.
  * - If the human value cannot be represented as a finite JS number → falls back to `originalValue` for all views.
- * - `0` is rendered as `"0"` (never belowMin).
+ * - `0` is rendered as `"0.00"` (never belowMin).
  *
  * ### Examples
  * ```ts
  * // Basic (USDC-like: 1_234_567 base units @ 6 dp)
- * bigIntToViewTokenAmount(
+ * formatBigIntToViewTokenAmount(
  *   { bigIntValue: 1234567n, symbol: "USDC", decimals: 6 }
  * )
  * // => {
@@ -315,7 +314,7 @@ function formatViewValueByMagnitude(
  * // }
  *
  * // Tiny values with floor (minDisplay provided)
- * bigIntToViewTokenAmount(
+ * formatBigIntToViewTokenAmount(
  *   { bigIntValue: 5n, symbol: "USDC", decimals: 9 },       // 0.000000005
  *   { minDisplay: 0.000001, singleDigitDecimals: 6 }
  * )
@@ -326,7 +325,7 @@ function formatViewValueByMagnitude(
  * // }
  *
  * // Tiny values without floor (minDisplay omitted)
- * bigIntToViewTokenAmount(
+ * formatBigIntToViewTokenAmount(
  *   { bigIntValue: 5n, symbol: "USDC", decimals: 9 },       // 0.000000005
  *   { singleDigitDecimals: 6 }                              // minDisplay undefined
  * )
@@ -336,7 +335,7 @@ function formatViewValueByMagnitude(
  * // }
  *
  * // Large values (compact band)
- * bigIntToViewTokenAmount(
+ * formatBigIntToViewTokenAmount(
  *   { bigIntValue: 123456789000000n, symbol: "ETH", decimals: 6 }
  * )
  * // => {
@@ -347,7 +346,7 @@ function formatViewValueByMagnitude(
  * // }
  *
  * // Forcing fixed decimals (e.g., 4) regardless of magnitude
- * bigIntToViewTokenAmount(
+ * formatBigIntToViewTokenAmount(
  *   { bigIntValue: 12345n, symbol: "FOO", decimals: 3 },
  *   { decimals: 4 }
  * )
@@ -377,7 +376,7 @@ export function formatBigIntToViewTokenAmount(
     maxDisplay,
   } = config
 
-  // missing value or decimals → placeholders; still pass through symbol/decimals
+  // Missing required source fields
   if (data?.bigIntValue == null || data.decimals == null) {
     return undefined
   }

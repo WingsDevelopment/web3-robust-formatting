@@ -303,6 +303,8 @@ Returns a `ViewBigInt` with:
 - `belowMin`, `aboveMax`, `sign`
 - passthrough metadata: `symbol`, `decimals`, `bigIntValue`
 
+If `bigIntValue` or `decimals` is missing, the function returns `undefined`.
+
 ### formatBigIntToViewNumber
 
 ```ts
