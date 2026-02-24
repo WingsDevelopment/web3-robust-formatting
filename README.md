@@ -14,6 +14,7 @@ Formatting helpers for **token amounts, USD values, percentages, and robust runt
 ## Table of Contents
 
 - [Installation](#installation)
+- [See It In Action](#see-it-in-action)
 - [Strong Rendering Recommendation](#strong-rendering-recommendation)
 - [Why This Library](#why-this-library)
 - [Quick Start](#quick-start)
@@ -52,6 +53,13 @@ Peer dependencies:
   }
 }
 ```
+
+---
+
+## See It In Action
+
+- Mock vaults page: https://react-clean-code-tutorials.vercel.app/mock-vaults
+- Storybook docs: https://react-clean-code-tutorials.vercel.app/storybook/index.html?path=/docs/display-components-token-value-field--docs
 
 ---
 
