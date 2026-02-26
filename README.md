@@ -14,6 +14,7 @@ Formatting helpers for **token amounts, USD values, percentages, and robust runt
 ## Table of Contents
 
 - [Installation](#installation)
+- [Codex Skills (Optional)](#codex-skills-optional)
 - [See It In Action](#see-it-in-action)
 - [Strong Rendering Recommendation](#strong-rendering-recommendation)
 - [Why This Library](#why-this-library)
@@ -53,6 +54,33 @@ Peer dependencies:
   }
 }
 ```
+
+
+## Codex Skills (Optional)
+
+Install the packaged Codex skills with `npx`:
+
+```bash
+npx web3-robust-formatting-codex-skill install
+npx web3-display-components-codex-skill install
+```
+
+Overwrite existing installed skill versions:
+
+```bash
+npx web3-robust-formatting-codex-skill install --force
+npx web3-display-components-codex-skill install --force
+```
+
+Restart Codex after installing skills.
+
+Add recommended auto-routing instructions into your project `AGENTS.md`:
+
+```bash
+npx web3-robust-formatting-codex-skill init-agents
+```
+
+That command appends a routing block so you do not need to explicitly say "use this skill" in every prompt. Codex can select it automatically when the task matches.
 
 ---
 
