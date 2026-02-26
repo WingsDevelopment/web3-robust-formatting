@@ -91,6 +91,126 @@ scaledValue = (value * multiplier) / divider
 
 `divider = 0` is an error.
 
+## Best Practice Examples from blog-examples
+
+Reference implementation files:
+
+- `/Users/srdjan/Documents/GitHub/web3-libs/blog-examples/src/app/data/vaults/vaults.mapper.ts`
+- `/Users/srdjan/Documents/GitHub/web3-libs/blog-examples/src/app/data/vaults/vaults.fetch.ts`
+- `/Users/srdjan/Documents/GitHub/web3-libs/blog-examples/src/app/data/vaults/vaults.types.ts`
+- `/Users/srdjan/Documents/GitHub/web3-libs/blog-examples/src/app/mock-vaults/components/VaultRow.tsx`
+
+### 1) Percentage formatting for APY and utilization
+
+```ts
+const supplyApy = robustFormatPercentToViewPercent({
+  context: `${baseContext}.supplyApy`,
+  input: { value: seed.supplyApy },
+  multiplier: seed.supplyApyMultiplier ?? 1,
+  divider: seed.supplyApyDivider ?? 1,
+  options: {
+    standardDecimals: 2,
+    compactDecimals: 2,
+    minDisplay: 0.01,
+    maxDisplay: 500,
+  },
+})
+
+const utilization = robustFormatPercentToViewPercent({
+  context: `${baseContext}.utilization`,
+  input: { value: seed.utilization },
+  options: {
+    standardDecimals: 2,
+    compactDecimals: 2,
+    minDisplay: 0.01,
+    maxDisplay: 100,
+  },
+})
+```
+
+### 2) Token amount formatting from base units
+
+```ts
+const totalSupplyAmount = robustFormatBigIntToViewTokenAmount({
+  context: `${baseContext}.totalSupply.amount`,
+  input: {
+    bigIntValue: seed.totalSupplyRaw,
+    symbol: seed.symbol,
+    decimals: seed.decimals,
+  },
+  requiredFields: ["decimals"],
+})
+```
+
+### 3) Token USD value pipeline (calculate -> format -> merge diagnostics)
+
+```ts
+const calcResult = robustCalculateTokenValue({
+  context: `${context}.calculate`,
+  input: {
+    tokenAmount,
+    tokenPrice,
+    tokenDecimals,
+    tokenPriceDecimals,
+  },
+})
+
+const formattedResult = robustFormatBigIntToViewNumber({
+  context: `${context}.format`,
+  input: {
+    bigIntValue: calcResult.value?.tokenValueRaw,
+    decimals: calcResult.value?.tokenValueDecimals,
+    symbol: "$",
+  },
+  options: {
+    standardDecimals: 2,
+    compactDecimals: 2,
+    minDisplay: 0.01,
+    maxDisplay: 10_000_000_000,
+  },
+})
+
+const diagnostics = mergeRobustDiagnostics(calcResult, formattedResult)
+```
+
+### 4) Shape used by renderer layer
+
+`VaultRow` renders robust outputs for percentages, token amounts, and token values. Simple text values (`name`, `chain`, `note`) are passed directly as strings and should not go through numeric formatters.
+
+Preferred render spread order in display-field wrappers:
+
+```tsx
+<DisplayPercentageField
+  {...row?.supplyApy}
+  {...row?.supplyApyQueryState}
+  {...queryState}
+/>
+
+<DisplayTokenAmountField
+  {...row?.totalSupplyAmount}
+  {...row?.totalSupplyAmountQueryState}
+  {...queryState}
+/>
+
+<DisplayTokenValueField
+  {...row?.totalSupplyUsd}
+  {...row?.totalSupplyUsdQueryState}
+  {...queryState}
+/>
+```
+
+## Data-quality scenario coverage from mock seeds
+
+`vaults.fetch.ts` includes concrete runtime examples that should remain covered by tests:
+
+- string coercions (`decimals`, `totalSupplyRaw`, `price`, `supplyApy`, `utilization` as strings)
+- malformed object payload (`inWalletRaw: { raw: "123" }`)
+- undefined/null/empty-string amount payloads
+- query errors that should override warnings in display layer
+- negative decimals hard error
+- malformed price metadata (empty price + non-integer decimals string)
+- long symbol + huge values + tiny percentages (compact and below-min behavior)
+
 ## Recommended integration patterns
 
 ### 1) Safe token value pipeline
@@ -173,3 +293,4 @@ When using this skill, Codex should:
   - scaling/divider validation
   - diagnostics output shape
 - Update README API docs whenever wrapper signatures or defaults change.
+- Mirror established vaults mapper patterns for new formatted fields.
